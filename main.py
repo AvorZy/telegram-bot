@@ -1,5 +1,7 @@
 # Keep only these imports at the top:
+import logging
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters
+from utils.config.settings import validate_required_env_vars
 from handlers import (
     start, main_menu, settings_command, unknown_message,
     view_cars, handle_brand_selected, handle_more_cars,
@@ -81,6 +83,9 @@ from utils.services.data_loader import car_data_loader  # Import directly from u
 
 # Add these CallbackQueryHandlers in the main() function
 def main():
+    # Validate required environment variables
+    validate_required_env_vars()
+    
     # Initialize car data before starting bot
     print("🚗 Initializing car data from external files...")
     initialize_product_data()  # Changed from initialize_car_data
