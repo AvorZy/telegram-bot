@@ -19,10 +19,10 @@ def clear_user_cache(telegram_id=None):
     if telegram_id:
         if telegram_id in user_cache:
             del user_cache[telegram_id]
-            print(f"DEBUG: Cleared cache for user {telegram_id}")
+            pass
     else:
         user_cache.clear()
-        print("DEBUG: Cleared all user cache")
+        pass
 
 async def force_refresh_user(telegram_id):
     """Force refresh user data from API by clearing cache"""
@@ -85,32 +85,32 @@ async def get_or_create_user(telegram_user):
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     telegram_id = update.effective_user.id
-    print(f"DEBUG: Start command for user {telegram_id}")
+    pass
     
     # Check if user already exists first (check cache and API)
     existing_user = None
     if telegram_id in user_cache:
         existing_user = user_cache[telegram_id]
-        print(f"DEBUG: Found user {telegram_id} in cache: {existing_user}")
+        pass
     else:
-        print(f"DEBUG: User {telegram_id} not in cache, checking API...")
+        pass
         # Check API directly without creating
         try:
             existing_user = await user_api_service.get_user(telegram_id)
             if existing_user:
-                print(f"DEBUG: Found user {telegram_id} in API: {existing_user}")
+                pass
                 # Convert API format to local format and cache it
                 existing_user = user_api_service._convert_api_user_to_local(existing_user)
                 user_cache[telegram_id] = existing_user
-                print(f"DEBUG: Cached converted user {telegram_id}: {existing_user}")
+                pass
             else:
-                print(f"DEBUG: User {telegram_id} not found in API")
+                pass
         except Exception as e:
-            print(f"Error checking existing user: {e}")
+            pass
     
     # If user exists, show main menu directly
     if existing_user:
-        print(f"DEBUG: User {telegram_id} exists, showing main menu directly")
+        pass
         welcome_message = language_handler.get_text(
             "welcome_message", 
             telegram_id, 
@@ -131,7 +131,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
         return
     
-    print(f"DEBUG: User {telegram_id} does not exist, showing language selection")
+    pass
     
     # User doesn't exist - show language selection for new users
     welcome_message = "🌐សូមជ្រើសរើសភាសា / Please select your preferred language "

@@ -436,55 +436,43 @@ async def show_charging_search_results_page(update: Update, context: ContextType
                         )
                         photo_sent = True
                     except Exception as e:
-                        print(f"❌ Failed to send photo from R2: {e}")
-                else:
-                    print(f"❌ R2 image URL is invalid or not an image: {image_url}")
+                        pass
+        except Exception as e:
+            pass
+        
+        # Try fallback to original API storage if R2 failed and station has image
+        if not photo_sent and station.image_url:
+            try:
+                fallback_url = charging_service.get_fallback_image_url(station.image_url)
                 
-                # Try fallback to original API storage if R2 failed and station has image
-                if not photo_sent and station.image_url:
-                    try:
-                        fallback_url = charging_service.get_fallback_image_url(station.image_url)
-                        
-                        # Validate fallback image URL
-                        if await is_valid_image_url(fallback_url):
-                            await update.callback_query.message.reply_photo(
-                                photo=fallback_url,
-                                caption=details,
-                                parse_mode='Markdown'
-                            )
-                            # Send action buttons as separate message
-                            await update.callback_query.message.reply_text(
-                                language_handler.get_text("actions", update.effective_user.id),
-                                reply_markup=keyboard
-                            )
-                            photo_sent = True
-                            print(f"✅ Successfully sent photo from fallback API storage")
-                        else:
-                            print(f"❌ Fallback image URL is invalid or not an image: {fallback_url}")
-                    except Exception as fallback_e:
-                        print(f"❌ Failed to send photo from fallback API: {fallback_e}")
-                
-                # If both image attempts failed, send text message
-                if not photo_sent:
-                    fallback_message = f"🔌 {details}\n\n⚠️ Image not available"
-                    await update.callback_query.message.reply_text(
-                        fallback_message,
-                        reply_markup=keyboard,
+                # Validate fallback image URL
+                if await is_valid_image_url(fallback_url):
+                    await update.callback_query.message.reply_photo(
+                        photo=fallback_url,
+                        caption=details,
                         parse_mode='Markdown'
                     )
-            else:
-                # Send text message if no image
-                await update.callback_query.message.reply_text(
-                    text=details,
-                    reply_markup=keyboard,
-                    parse_mode='Markdown'
-                )
-        except Exception as e:
-            print(f"❌ Error sending charging station search result: {e}")
-            # Final fallback to text message
-            fallback_message = f"🔌 {details}\n\n⚠️ Error loading images"
+                    # Send action buttons as separate message
+                    await update.callback_query.message.reply_text(
+                        language_handler.get_text("actions", update.effective_user.id),
+                        reply_markup=keyboard
+                    )
+                    photo_sent = True
+            except Exception as fallback_e:
+                pass
+        
+        # If both image attempts failed, send text message
+        if not photo_sent:
+            fallback_message = f"🔌 {details}\n\n⚠️ Image not available"
             await update.callback_query.message.reply_text(
                 fallback_message,
+                reply_markup=keyboard,
+                parse_mode='Markdown'
+            )
+        else:
+            # Send text message if no image
+            await update.callback_query.message.reply_text(
+                text=details,
                 reply_markup=keyboard,
                 parse_mode='Markdown'
             )

@@ -34,10 +34,10 @@ def initialize_user_data():
         # This function is kept for consistency with product.py structure
         # but users are typically loaded on-demand via get_or_create_user
         
-        print(f"User data initialization completed. Users loaded on-demand via API.")
+        pass
         
     except Exception as e:
-        print(f"Error initializing user data: {e}")
+        pass
         # Keep empty list as fallback
         users = []
 

@@ -41,7 +41,7 @@ class UserAPIService:
                         print(f"DEBUG: API error for user {telegram_id}, status: {response.status}")
                         response.raise_for_status()
         except Exception as e:
-            print(f"Error getting user {telegram_id}: {e}")
+            pass
             return None
     
     async def create_user(self, user_data: Dict) -> Optional[Dict]:
@@ -82,7 +82,7 @@ class UserAPIService:
                     else:
                         response.raise_for_status()
         except Exception as e:
-            print(f"Error creating user: {e}")
+            pass
             return None
     
     async def update_user(self, telegram_id: int, update_data: Dict) -> Optional[Dict]:
@@ -100,9 +100,9 @@ class UserAPIService:
             # Remove None values
             api_update_data = {k: v for k, v in api_update_data.items() if v is not None}
             
-            print(f"DEBUG: Updating user {telegram_id} via API with data: {api_update_data}")
+            pass
             if 'language' in api_update_data:
-                print(f"DEBUG: Language being updated for user {telegram_id}: {api_update_data['language']}")
+                pass
             
             async with aiohttp.ClientSession() as session:
                 async with session.put(
@@ -127,7 +127,7 @@ class UserAPIService:
                         print(f"DEBUG: API update failed for user {telegram_id}, status: {response.status}")
                         response.raise_for_status()
         except Exception as e:
-            print(f"Error updating user {telegram_id}: {e}")
+            pass
             return None
     
     async def get_user_favorites(self, telegram_id: int) -> List[Dict]:
@@ -146,7 +146,7 @@ class UserAPIService:
                     else:
                         response.raise_for_status()
         except Exception as e:
-            print(f"Error getting user favorites {telegram_id}: {e}")
+            pass
             return []
     
     async def add_favorite(self, telegram_id: int, car_id: int) -> bool:
@@ -166,7 +166,7 @@ class UserAPIService:
                 ) as response:
                     return response.status in [200, 201]
         except Exception as e:
-            print(f"Error adding favorite for user {telegram_id}: {e}")
+            pass
             return False
     
     async def remove_favorite(self, telegram_id: int, car_id: int) -> bool:
@@ -179,7 +179,7 @@ class UserAPIService:
                 ) as response:
                     return response.status in [200, 204]
         except Exception as e:
-            print(f"Error removing favorite for user {telegram_id}: {e}")
+            pass
             return False
     
     async def update_user_location(self, telegram_id: int, latitude: float, longitude: float) -> bool:
@@ -202,7 +202,7 @@ class UserAPIService:
             print(f"DEBUG: Location update success determination: {success}")
             return success
         except Exception as e:
-            print(f"Error updating location for user {telegram_id}: {e}")
+            pass
             return False
     
     async def get_user_location(self, telegram_id: int) -> tuple[float, float] | None:
@@ -213,7 +213,7 @@ class UserAPIService:
                 return (user['latitude'], user['longitude'])
             return None
         except Exception as e:
-            print(f"Error getting location for user {telegram_id}: {e}")
+            pass
             return None
     
     async def get_or_create_user(self, telegram_user) -> Dict:

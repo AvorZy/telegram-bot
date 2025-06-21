@@ -112,12 +112,12 @@ def initialize_product_data():
                 )
                 products.append(product)
             except Exception as e:
-                print(f"❌ Error creating product {listing['id']}: {e}")
+                pass
         
-        print(f"✅ Successfully initialized {len(products)} products")
+        pass
         
     except Exception as e:
-        print(f"❌ Error initializing product data: {e}")
+        pass
         # Fallback to empty list
         products.clear()
         product_listings = []

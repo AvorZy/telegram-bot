@@ -49,7 +49,7 @@ async def handle_language_change(update: Update, context: ContextTypes.DEFAULT_T
             # Update local cache with fresh API data
             if telegram_id in user_cache:
                 user_cache[telegram_id].update(user_api_service._convert_api_user_to_local(updated_user))
-                print(f"DEBUG: Updated local cache for user {telegram_id} with language: {user_cache[telegram_id].get('language')}")
+                pass
         else:
             # API update failed, but update local cache anyway
             if telegram_id in user_cache:
@@ -67,7 +67,7 @@ async def handle_language_change(update: Update, context: ContextTypes.DEFAULT_T
         )
         
     except Exception as e:
-        print(f"Error updating language for user {telegram_id}: {e}")
+        pass
         
         # Fallback: update local cache only
         from handlers.base import user_cache

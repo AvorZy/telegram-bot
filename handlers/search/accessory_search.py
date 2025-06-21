@@ -349,7 +349,7 @@ async def show_accessory_search_results_page(update: Update, context: ContextTyp
                     if r2_url and r2_url.strip():
                         image_urls.append((r2_url, "R2 storage"))
                 except Exception as e:
-                    print(f"🔍 Error getting R2 URL: {e}")
+                         pass
                 
                 # Add fallback URL
                 try:
@@ -357,12 +357,12 @@ async def show_accessory_search_results_page(update: Update, context: ContextTyp
                     if fallback_url and fallback_url.strip():
                         image_urls.append((fallback_url, "API storage"))
                 except Exception as e:
-                    print(f"🔍 Error getting fallback URL: {e}")
+                    pass
                 
                 # Try each URL until one works
                 for image_url, source_name in image_urls:
                     try:
-                        print(f"🔍 Trying {source_name}: {image_url}")
+                        pass
                         
                         # For R2 URLs, try different approaches
                         if "r2.dev" in image_url:
@@ -373,7 +373,7 @@ async def show_accessory_search_results_page(update: Update, context: ContextTyp
                                     async with session.get(image_url, timeout=aiohttp.ClientTimeout(total=10)) as response:
                                         if response.status == 200:
                                             image_data = await response.read()
-                                            print(f"🔍 Downloaded {len(image_data)} bytes from R2")
+                                            pass
                                             
                                             # Send as bytes instead of URL
                                             await bot.send_photo(
@@ -390,10 +390,10 @@ async def show_accessory_search_results_page(update: Update, context: ContextTyp
                                                 reply_markup=keyboard
                                             )
                                             photo_sent = True
-                                            print(f"✅ Successfully sent photo data from {source_name}")
+                                            pass
                                             break
                             except Exception as download_e:
-                                print(f"❌ Failed to download from R2: {download_e}")
+                                pass
                                 # Fallback to direct URL
                                 pass
                         
@@ -413,11 +413,11 @@ async def show_accessory_search_results_page(update: Update, context: ContextTyp
                                 reply_markup=keyboard
                             )
                             photo_sent = True
-                            print(f"✅ Successfully sent photo URL from {source_name}")
+                            pass
                             break
                             
                     except Exception as e:
-                        print(f"❌ Failed to send photo from {source_name}: {e}")
+                        pass
                         continue
             
             # If no image was sent, send text message
@@ -438,10 +438,10 @@ async def show_accessory_search_results_page(update: Update, context: ContextTyp
                     text=language_handler.get_text("choose_action", update.effective_user.id),
                     reply_markup=keyboard
                 )
-                print(f"📝 Sent text message as fallback")
-                
+                pass
+                 
         except Exception as e:
-            print(f"❌ Error sending accessory card: {e}")
+            pass
             # Final fallback to text message
             try:
                 fallback_message = f"🔧 {details}\n\n" + language_handler.get_text("error_loading_content", update.effective_user.id)
@@ -459,7 +459,7 @@ async def show_accessory_search_results_page(update: Update, context: ContextTyp
                         reply_markup=keyboard
                     )
             except Exception as final_e:
-                print(f"❌ Final fallback failed: {final_e}")
+                 pass
 
 async def handle_more_accessory_results(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle 'View More Results' button for accessory search"""

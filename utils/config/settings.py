@@ -45,5 +45,4 @@ API_BASE_URL_IMG = os.getenv('API_BASE_URL_IMG', 'https://pub-133f8593b35749f28f
 
 
 
-print(f"Running in {ENVIRONMENT} environment")
-print(f"API Base URL: {API_BASE_URL}")
+pass

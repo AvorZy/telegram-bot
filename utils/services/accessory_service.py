@@ -28,7 +28,7 @@ class AccessoryService:
         # Check if cache is still valid
         if (self.accessories_cache and 
             current_time - self.cache_timestamp < self.cache_duration):
-            print("DEBUG: Using cached accessories data")
+            pass
             return self.accessories_cache
         
         # Fetch fresh data from API
@@ -40,13 +40,13 @@ class AccessoryService:
                         accessories_data = data.get('data', [])
                         self.accessories_cache = [Accessory.from_api_data(acc_data) for acc_data in accessories_data]
                         self.cache_timestamp = current_time
-                        print(f"DEBUG: Fetched {len(self.accessories_cache)} accessories from API")
+                        pass
                         return self.accessories_cache
                     else:
-                        print(f"Error fetching accessories: HTTP {response.status}")
+                        pass
                         return self.accessories_cache if self.accessories_cache else []
         except Exception as e:
-            print(f"Error fetching accessories: {e}")
+            pass
             return self.accessories_cache if self.accessories_cache else []
     
     async def get_unique_types(self) -> List[str]:

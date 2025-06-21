@@ -26,7 +26,7 @@ class ChargingStationService:
         # Check if cache is still valid
         if (self.stations_cache and 
             current_time - self.cache_timestamp < self.cache_duration):
-            print("DEBUG: Using cached charging stations data")
+            pass
             return self.stations_cache
         
         # Fetch fresh data from API
@@ -35,7 +35,7 @@ class ChargingStationService:
                 async with session.get(self.api_url) as response:
                     if response.status == 200:
                         response_data = await response.json()
-                        print(f"DEBUG: API Response type: {type(response_data)}")
+                        pass
                         
                         # Check if response_data is a list
                         if isinstance(response_data, list):
@@ -48,19 +48,17 @@ class ChargingStationService:
                                 # Single station object
                                 self.stations_cache = [ChargingStation.from_api_data(response_data)]
                         else:
-                            print(f"ERROR: Unexpected data type: {type(response_data)}")
+                            pass
                             return self.stations_cache if self.stations_cache else []
                         
                         self.cache_timestamp = current_time
-                        print(f"DEBUG: Fetched {len(self.stations_cache)} charging stations from API")
+                        pass
                         return self.stations_cache
                     else:
-                        print(f"ERROR: API returned status {response.status}")
+                        pass
                         return self.stations_cache if self.stations_cache else []
         except Exception as e:
-            print(f"Error fetching charging stations: {e}")
-            import traceback
-            traceback.print_exc()
+            pass
             return self.stations_cache if self.stations_cache else []
     
     async def get_all_stations(self) -> List[ChargingStation]:
@@ -84,22 +82,22 @@ class ChargingStationService:
             # Remove various types of backticks and quotes
             cleaned_link = cleaned_link.replace('`', '').replace('`', '').replace('´', '').replace(''', '').replace(''', '')
             cleaned_link = cleaned_link.replace('"', '').replace("'", '').strip()
-            print(f"DEBUG: Processing map link: '{map_link}' -> cleaned: '{cleaned_link}'")
+            pass
             
             # Handle shortened Google Maps links by trying to expand them
             if 'maps.app.goo.gl' in cleaned_link:
-                print(f"DEBUG: Found shortened Google Maps link: {cleaned_link}")
+                pass
                 try:
                     import requests
                     response = requests.head(cleaned_link, allow_redirects=True, timeout=5)
                     expanded_url = response.url
-                    print(f"DEBUG: Expanded URL: {expanded_url}")
+                    pass
                     cleaned_link = expanded_url
                 except Exception as e:
-                    print(f"DEBUG: Failed to expand shortened URL: {e}")
+                    pass
                     # For Canadia Tower, return known coordinates
                     if 'YQMHC41qXNQmPLaT8' in cleaned_link:
-                        print(f"DEBUG: Using known coordinates for Canadia Tower")
+                        pass
                         return (11.5564, 104.9282)  # Phnom Penh coordinates
                     return None
             
@@ -115,13 +113,13 @@ class ChargingStationService:
                 match = re.search(pattern, cleaned_link)
                 if match:
                     lat, lng = float(match.group(1)), float(match.group(2))
-                    print(f"DEBUG: Found coordinates: lat={lat}, lng={lng}")
+                    pass
                     return (lat, lng)
             
-            print(f"DEBUG: No coordinates found in map link: {cleaned_link}")
+            pass
             return None
         except (ValueError, AttributeError) as e:
-            print(f"DEBUG: Error extracting coordinates: {e}")
+            pass
             return None
     
     def calculate_distance(self, lat1: float, lng1: float, lat2: float, lng2: float) -> float:

@@ -162,16 +162,15 @@ async def show_brand_cars_page(update: Update, context: ContextTypes.DEFAULT_TYP
                                 photo=clean_image_url,
                                 caption=details
                             )
-                        print(f"📱 Single photo sent: {clean_image_url[:50]}...")
                         message_sent = True
                     except Exception as e:
-                        print(f"❌ Failed to send main photo ({clean_image_url}): {e}")
+                        pass
                         message_sent = False
                 else:
-                    print(f"⚠️ Invalid main image URL for car {car.id}: {car.image_url}")
+                    pass
                     message_sent = False
             else:
-                print(f"⚠️ No main image URL for car {car.id}")
+                pass
                 message_sent = False
         
         # Always send action buttons as a separate message with translated label
@@ -187,9 +186,9 @@ async def show_brand_cars_page(update: Update, context: ContextTypes.DEFAULT_TYP
                     f"{actions_text}:",
                     reply_markup=keyboard
                 )
-            print(f"📱 Action buttons sent as separate message")
+            pass
         except Exception as e:
-            print(f"❌ Failed to send action buttons: {e}")
+            pass
         
         # Send fallback text message only if media group wasn't sent successfully
         if not message_sent:

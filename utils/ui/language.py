@@ -246,7 +246,7 @@ class LanguageHandler:
                 "help_contact": "❓Help 📞 Contact",
                 "help_settings": "❓Help ⚙️ Settings",
                 "help_charging_stations": "❓Help ⚡ Charging Stations",
-                "help_garage": "🔧 Garage",
+                "help_garage": "❓Help 🔧 Garage",
                 "back_to_help": "🔙 Back to Help",
                 
                 # Help Content
