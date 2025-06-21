@@ -3,20 +3,16 @@ import aiohttp
 import os
 from typing import List, Optional, Dict, Any
 from models.core.accessory import Accessory
-from dotenv import load_dotenv
-
-# Load environment variables
-load_dotenv()
+from utils.config.settings import API_BASE_URL, API_BASE_URL_IMG
 
 class AccessoryService:
     """Service for handling accessory data from API"""
     
     def __init__(self):
-        self.base_url = os.getenv('API_BASE_URL', "https://inventoryapiv1-367404119922.asia-southeast1.run.app")
+        self.base_url = API_BASE_URL
         # Use environment variables like data_loader
-        self.image_base_url = os.getenv('API_BASE_URL_IMG', "https://inventoryapiv1-367404119922.asia-southeast1.run.app/uploads/")
-        r2_base = os.getenv('API_BASE_URL_IMG', "https://pub-133f8593b35749f28fa090bc33925b31.r2.dev")
-        self.r2_image_base_url = r2_base if r2_base.endswith('/') else f"{r2_base}/"
+        self.image_base_url = API_BASE_URL_IMG
+        self.r2_image_base_url = API_BASE_URL_IMG if API_BASE_URL_IMG.endswith('/') else f"{API_BASE_URL_IMG}/"
         self.accessories_cache = []
         self.cache_timestamp = 0
         self.cache_duration = 300  # 5 minutes

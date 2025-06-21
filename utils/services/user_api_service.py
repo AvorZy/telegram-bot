@@ -4,20 +4,14 @@ import asyncio
 import os
 from typing import Dict, Optional, List
 from datetime import datetime
-from dotenv import load_dotenv
-
-# Load environment variables
-load_dotenv()
+from utils.config.settings import API_BASE_URL
 
 class UserAPIService:
     """Handles user management operations with external API"""
     
     def __init__(self):
-        self.api_base_url = os.getenv('API_BASE_URL')
+        self.api_base_url = API_BASE_URL
         self.api_timeout = int(os.getenv('API_TIMEOUT', '30'))
-        
-        if not self.api_base_url:
-            raise ValueError("API_BASE_URL must be set in .env file")
     
     async def get_user(self, telegram_id: int) -> Optional[Dict]:
         """Get user data from API by telegram ID"""
