@@ -1,7 +1,6 @@
 from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime
-from pydantic import BaseModel
 
 class User(BaseModel):
     id: int
@@ -12,9 +11,6 @@ class User(BaseModel):
     phone_number: Optional[str]
     language: str = "en"
     is_first_time: bool = True
-    latitude: Optional[float] = None
-    longitude: Optional[float] = None
-    location_updated_at: Optional[datetime] = None
     created_at: datetime
 
 # Initialize empty list to store data
@@ -42,4 +38,4 @@ def initialize_user_data():
         users = []
 
 # Initialize user data when module is imported
-initialize_user_data()
+initialize_user_data()z
