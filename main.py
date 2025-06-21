@@ -76,10 +76,8 @@ from utils.config.settings import TELEGRAM_TOKEN
 from models.core.product import initialize_product_data  # Changed from initialize_car_data
 from models.core.user import initialize_user_data
 from utils.services.data_loader import car_data_loader  # Import directly from utils.services.data_loader
-import os
 
-TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
-
+s
 
 # Add these CallbackQueryHandlers in the main() function
 def main():
