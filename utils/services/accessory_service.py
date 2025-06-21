@@ -1,6 +1,7 @@
 import asyncio
 import aiohttp
 import os
+import time
 from typing import List, Optional, Dict, Any
 from models.core.accessory import Accessory
 from utils.config.settings import API_BASE_URL, API_BASE_URL_IMG
@@ -16,22 +17,37 @@ class AccessoryService:
         self.accessories_cache = []
         self.cache_timestamp = 0
         self.cache_duration = 300  # 5 minutes
+        # Image URL validation cache
+        self.image_url_cache = {}
+        self.image_cache_duration = 1800  # 30 minutes
         
     async def fetch_all_accessories(self) -> List[Accessory]:
-        """Fetch all accessories from API"""
+        """Fetch all accessories from API with caching"""
+        current_time = time.time()
+        
+        # Check if cache is still valid
+        if (self.accessories_cache and 
+            current_time - self.cache_timestamp < self.cache_duration):
+            print("DEBUG: Using cached accessories data")
+            return self.accessories_cache
+        
+        # Fetch fresh data from API
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.get(f"{self.base_url}/Accessory") as response:
                     if response.status == 200:
                         data = await response.json()
                         accessories_data = data.get('data', [])
-                        return [Accessory.from_api_data(acc_data) for acc_data in accessories_data]
+                        self.accessories_cache = [Accessory.from_api_data(acc_data) for acc_data in accessories_data]
+                        self.cache_timestamp = current_time
+                        print(f"DEBUG: Fetched {len(self.accessories_cache)} accessories from API")
+                        return self.accessories_cache
                     else:
                         print(f"Error fetching accessories: HTTP {response.status}")
-                        return []
+                        return self.accessories_cache if self.accessories_cache else []
         except Exception as e:
             print(f"Error fetching accessories: {e}")
-            return []
+            return self.accessories_cache if self.accessories_cache else []
     
     async def get_unique_types(self) -> List[str]:
         """Get unique accessory categories"""
@@ -146,48 +162,34 @@ class AccessoryService:
         return accessories
     
     async def get_full_image_url(self, image_filename: str) -> str:
-        """Get full image URL from filename with validation - supports both API and R2 storage"""
+        """Get full image URL from filename with cached validation - supports both API and R2 storage"""
         if not image_filename:
             return ""
         
         # Clean the image filename (strip whitespace and trailing commas)
         cleaned_filename = image_filename.strip().rstrip(',')
         
-        # If already a full URL, validate and return it
+        # Check cache first
+        current_time = time.time()
+        cache_key = cleaned_filename
+        if cache_key in self.image_url_cache:
+            cached_result, cached_time = self.image_url_cache[cache_key]
+            if current_time - cached_time < self.image_cache_duration:
+                return cached_result
+        
+        # If already a full URL, do basic validation and return it
         if cleaned_filename.startswith(('http://', 'https://')):
-            # Basic URL validation
             if '.' in cleaned_filename and len(cleaned_filename) > 10:
-                # Test if the URL is accessible
-                try:
-                    async with aiohttp.ClientSession() as session:
-                        async with session.head(cleaned_filename, timeout=aiohttp.ClientTimeout(total=3)) as response:
-                            if response.status == 200:
-                                return cleaned_filename
-                except Exception:
-                    pass
+                self.image_url_cache[cache_key] = (cleaned_filename, current_time)
+                return cleaned_filename
+            self.image_url_cache[cache_key] = ("", current_time)
             return ""
         
-        # Try R2 storage first (newer images) and validate
+        # Try R2 storage first (newer images) - assume it works to avoid HTTP calls
         r2_url = f"{self.r2_image_base_url}{cleaned_filename}"
-        try:
-            async with aiohttp.ClientSession() as session:
-                async with session.head(r2_url, timeout=aiohttp.ClientTimeout(total=3)) as response:
-                    if response.status == 200:
-                        return r2_url
-        except Exception:
-            pass
-        
-        # Try API storage as fallback and validate
-        api_url = f"{self.image_base_url}{cleaned_filename}"
-        try:
-            async with aiohttp.ClientSession() as session:
-                async with session.head(api_url, timeout=aiohttp.ClientTimeout(total=3)) as response:
-                    if response.status == 200:
-                        return api_url
-        except Exception:
-            pass
-        
-        return ""
+        # Cache and return R2 URL without validation for performance
+        self.image_url_cache[cache_key] = (r2_url, current_time)
+        return r2_url
     
     def get_fallback_image_url(self, image_filename: str) -> str:
         """Get fallback image URL from original API storage"""

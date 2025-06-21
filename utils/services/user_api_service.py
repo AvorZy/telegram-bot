@@ -91,7 +91,10 @@ class UserAPIService:
             # Prepare update data for API
             api_update_data = {
                 "language": update_data.get('language'),
-                "settings": update_data.get('settings')
+                "settings": update_data.get('settings'),
+                "latitude": update_data.get('latitude'),
+                "longitude": update_data.get('longitude'),
+                "locationUpdatedAt": update_data.get('locationUpdatedAt')
             }
             
             # Remove None values
@@ -111,10 +114,13 @@ class UserAPIService:
                         data = await response.json()
                         print(f"DEBUG: Update user API response: {data}")
                         
-                        updated_user = data.get('data') if isinstance(data, dict) else data
+                        # The API returns the user object directly, not wrapped in 'data'
+                        updated_user = data if isinstance(data, dict) and data.get('telegramId') else None
                         if updated_user:
                             print(f"DEBUG: Updated user data: {updated_user}")
                             print(f"DEBUG: Language field in updated user: {updated_user.get('language', 'FIELD_NOT_FOUND')}")
+                        else:
+                            print(f"DEBUG: No valid user data found in API response")
                         
                         return updated_user
                     else:
@@ -175,6 +181,40 @@ class UserAPIService:
         except Exception as e:
             print(f"Error removing favorite for user {telegram_id}: {e}")
             return False
+    
+    async def update_user_location(self, telegram_id: int, latitude: float, longitude: float) -> bool:
+        """Update user's location coordinates"""
+        try:
+            from datetime import datetime
+            location_data = {
+                'latitude': latitude,
+                'longitude': longitude,
+                'locationUpdatedAt': datetime.now().isoformat()
+            }
+            
+            print(f"DEBUG: Sending location data to API: {location_data}")
+            updated_user = await self.update_user(telegram_id, location_data)
+            print(f"DEBUG: API returned user data: {updated_user}")
+            
+            # Consider it successful if we get any user data back (API accepts the update)
+            # The API might not return the location fields in the response
+            success = updated_user is not None and updated_user.get('telegramId') == str(telegram_id)
+            print(f"DEBUG: Location update success determination: {success}")
+            return success
+        except Exception as e:
+            print(f"Error updating location for user {telegram_id}: {e}")
+            return False
+    
+    async def get_user_location(self, telegram_id: int) -> tuple[float, float] | None:
+        """Get user's stored location coordinates"""
+        try:
+            user = await self.get_user(telegram_id)
+            if user and user.get('latitude') and user.get('longitude'):
+                return (user['latitude'], user['longitude'])
+            return None
+        except Exception as e:
+            print(f"Error getting location for user {telegram_id}: {e}")
+            return None
     
     async def get_or_create_user(self, telegram_user) -> Dict:
         """Get existing user or create new one with dynamic language detection"""

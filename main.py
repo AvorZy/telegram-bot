@@ -74,6 +74,14 @@ from handlers import (
     handle_contact_accessory_seller,
     handle_copy_accessory_phone,
 )
+from handlers.location.location import (
+    request_location,
+    handle_location_received,
+    handle_nearby_charging_stations,
+    handle_nearby_garages,
+    show_location_settings,
+    handle_clear_location
+)
 from utils.config.settings import TELEGRAM_TOKEN
 from models.core.product import initialize_product_data  # Changed from initialize_car_data
 from models.core.user import initialize_user_data
@@ -312,6 +320,14 @@ def main():
 
     # More cars handler
     application.add_handler(CallbackQueryHandler(handle_more_cars, pattern=r"^more_cars_"))
+    
+    # Location handlers
+    application.add_handler(CallbackQueryHandler(request_location, pattern="^request_location$"))
+    application.add_handler(CallbackQueryHandler(handle_nearby_charging_stations, pattern="^nearby_charging_stations$"))
+    application.add_handler(CallbackQueryHandler(handle_nearby_garages, pattern="^nearby_garages$"))
+    application.add_handler(CallbackQueryHandler(show_location_settings, pattern="^location_settings$"))
+    application.add_handler(CallbackQueryHandler(handle_clear_location, pattern="^clear_location$"))
+    application.add_handler(MessageHandler(filters.LOCATION, handle_location_received))
     
     # Generic handlers (these should be at the end)
     application.add_handler(CallbackQueryHandler(start, pattern="^back_to_main$"))

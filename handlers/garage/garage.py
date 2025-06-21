@@ -198,54 +198,33 @@ async def handle_show_by_location(update: Update, context: ContextTypes.DEFAULT_
         await query.message.reply_text(error_message, reply_markup=keyboard)
 
 async def handle_show_nearby(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle showing nearby garages with card display"""
+    """Handle showing nearby garages with real-time location"""
     query = update.callback_query
     await query.answer()
     
     telegram_id = update.effective_user.id
-    service = GarageService()
     
-    # Show loading message
-    loading_message = language_handler.get_text("garage_loading", telegram_id)
-    await query.message.reply_text(loading_message)
+    # Request real-time location for accurate nearby results
+    from telegram import KeyboardButton, ReplyKeyboardMarkup
+    location_button = KeyboardButton(
+        text=language_handler.get_text('share_location_button', telegram_id),
+        request_location=True
+    )
     
-    try:
-        # Default user location (Phnom Penh coordinates)
-        # TODO: Get actual user location from user profile or location sharing
-        user_lat = 11.5564  # Phnom Penh latitude
-        user_lng = 104.9282  # Phnom Penh longitude
-        
-        # Get nearby garages sorted by distance (fetch more for pagination)
-        garages = await service.get_nearby_garages(user_lat, user_lng, limit=50)  # Get more for pagination
-        
-        if not garages:
-            no_garages_message = language_handler.get_text("garage_no_garages", telegram_id)
-            keyboard = InlineKeyboardMarkup([[
-                InlineKeyboardButton(
-                    language_handler.get_text("back_to_menu", telegram_id),
-                    callback_data="back_to_main"
-                )
-            ]])
-            await query.message.reply_text(no_garages_message, reply_markup=keyboard)
-            return
-        
-        # Store garages in context for pagination
-        context.user_data['nearby_garages'] = garages
-        context.user_data['garages_offset'] = 0
-        
-        # Show first 5 garages in card format
-        await show_garages_page(update, context, 0, "nearby")
-        
-    except Exception as e:
-        print(f"Error in handle_show_nearby: {e}")
-        error_message = language_handler.get_text("garage_error", telegram_id)
-        keyboard = InlineKeyboardMarkup([[
-            InlineKeyboardButton(
-                language_handler.get_text("back_to_menu", telegram_id),
-                callback_data="back_to_main"
-            )
-        ]])
-        await query.message.reply_text(error_message, reply_markup=keyboard)
+    keyboard = ReplyKeyboardMarkup(
+        [[location_button]],
+        resize_keyboard=True,
+        one_time_keyboard=True
+    )
+    
+    # Store that user wants to see garages after sharing real-time location
+    context.user_data['pending_action'] = 'show_nearby_garage'
+    
+    await query.message.reply_text(
+        language_handler.get_text('location_request_realtime', telegram_id) or 
+        "📍 Please share your current location to find nearby garages",
+        reply_markup=keyboard
+    )
 
 async def show_garages_page(update: Update, context: ContextTypes.DEFAULT_TYPE, offset: int, display_type: str):
     """Display a page of garages in card format"""
@@ -335,8 +314,9 @@ async def show_garages_page(update: Update, context: ContextTypes.DEFAULT_TYPE, 
                                         print(f"🔍 Downloaded {len(image_data)} bytes from {source_name}")
                                         
                                         # Send as bytes instead of URL
-                                        if query:
-                                            await query.message.reply_photo(
+                                        message_obj = query.message if query else update.message
+                                        if message_obj:
+                                            await message_obj.reply_photo(
                                                 photo=image_data,
                                                 caption=details,
                                                 parse_mode='Markdown'
@@ -350,8 +330,9 @@ async def show_garages_page(update: Update, context: ContextTypes.DEFAULT_TYPE, 
                     
                     # Try direct URL sending (for non-R2 or if download failed)
                     if not photo_sent:
-                        if query:
-                            await query.message.reply_photo(
+                        message_obj = query.message if query else update.message
+                        if message_obj:
+                            await message_obj.reply_photo(
                                 photo=image_url,
                                 caption=details,
                                 parse_mode='Markdown'
@@ -368,8 +349,9 @@ async def show_garages_page(update: Update, context: ContextTypes.DEFAULT_TYPE, 
             # If no image could be sent, send text message
             if not photo_sent:
                 fallback_message = f"🔧 {details}\n\n⚠️ Image not available"
-                if query:
-                    await query.message.reply_text(
+                message_obj = query.message if query else update.message
+                if message_obj:
+                    await message_obj.reply_text(
                         fallback_message,
                         parse_mode='Markdown'
                     )
@@ -377,8 +359,9 @@ async def show_garages_page(update: Update, context: ContextTypes.DEFAULT_TYPE, 
             print(f"❌ Error sending garage card: {e}")
             # Final fallback to text message
             fallback_message = f"🔧 {details}\n\n⚠️ Error loading images"
-            if query:
-                await query.message.reply_text(
+            message_obj = query.message if query else update.message
+            if message_obj:
+                await message_obj.reply_text(
                     fallback_message,
                     parse_mode='Markdown'
                 )
@@ -399,8 +382,9 @@ async def show_garages_page(update: Update, context: ContextTypes.DEFAULT_TYPE, 
             )]
         ])
         
-        if query:
-            await query.message.reply_text(
+        message_obj = query.message if query else update.message
+        if message_obj:
+            await message_obj.reply_text(
                 language_handler.get_text("actions", telegram_id),
                 reply_markup=action_keyboard
             )
@@ -427,8 +411,9 @@ async def show_garages_page(update: Update, context: ContextTypes.DEFAULT_TYPE, 
             )]
         ])
         
-        if query:
-            await query.message.reply_text(
+        message_obj = query.message if query else update.message
+        if message_obj:
+            await message_obj.reply_text(
                 view_more_text,
                 reply_markup=view_more_keyboard,
                 parse_mode='Markdown'

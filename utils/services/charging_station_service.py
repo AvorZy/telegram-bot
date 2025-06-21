@@ -2,53 +2,66 @@ import aiohttp
 import math
 import os
 import re
+import time
 from typing import List, Optional, Dict, Any, Tuple
 from models.core.charging_station import ChargingStation
-from dotenv import load_dotenv
-
-# Load environment variables
-load_dotenv()
+from utils.config.settings import API_BASE_URL_IMG
 
 class ChargingStationService:
     """Service class for handling charging station API operations"""
     
     def __init__(self, api_url: str = "https://inventoryapiv1-367404119922.asia-southeast1.run.app/ChargingStation"):
         self.api_url = api_url
-        # Use environment variables like data_loader
-        self.image_base_url = os.getenv('API_BASE_URL_IMG', "https://inventoryapiv1-367404119922.asia-southeast1.run.app/uploads/")
+        self.image_base_url = API_BASE_URL_IMG
         self.r2_image_base_url = "https://pub-133f8593b35749f28fa090bc33925b31.r2.dev/"
+        # Add caching
+        self.stations_cache = []
+        self.cache_timestamp = 0
+        self.cache_duration = 300  # 5 minutes
     
     async def fetch_all_stations(self) -> List[ChargingStation]:
-        """Fetch all charging stations from API"""
+        """Fetch all charging stations from API with caching"""
+        current_time = time.time()
+        
+        # Check if cache is still valid
+        if (self.stations_cache and 
+            current_time - self.cache_timestamp < self.cache_duration):
+            print("DEBUG: Using cached charging stations data")
+            return self.stations_cache
+        
+        # Fetch fresh data from API
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.get(self.api_url) as response:
                     if response.status == 200:
                         response_data = await response.json()
                         print(f"DEBUG: API Response type: {type(response_data)}")
-                        print(f"DEBUG: API Response: {response_data}")
                         
                         # Check if response_data is a list
                         if isinstance(response_data, list):
-                            return [ChargingStation.from_api_data(station_data) for station_data in response_data]
+                            self.stations_cache = [ChargingStation.from_api_data(station_data) for station_data in response_data]
                         elif isinstance(response_data, dict):
                             # If it's a dict, check for 'data' property (pagination response)
                             if 'data' in response_data and isinstance(response_data['data'], list):
-                                return [ChargingStation.from_api_data(station_data) for station_data in response_data['data']]
+                                self.stations_cache = [ChargingStation.from_api_data(station_data) for station_data in response_data['data']]
                             else:
                                 # Single station object
-                                return [ChargingStation.from_api_data(response_data)]
+                                self.stations_cache = [ChargingStation.from_api_data(response_data)]
                         else:
                             print(f"ERROR: Unexpected data type: {type(response_data)}")
-                            return []
+                            return self.stations_cache if self.stations_cache else []
+                        
+                        self.cache_timestamp = current_time
+                        print(f"DEBUG: Fetched {len(self.stations_cache)} charging stations from API")
+                        return self.stations_cache
                     else:
                         print(f"ERROR: API returned status {response.status}")
-                        return []
+                        return self.stations_cache if self.stations_cache else []
         except Exception as e:
             print(f"Error fetching charging stations: {e}")
             import traceback
             traceback.print_exc()
-            return []
+            return self.stations_cache if self.stations_cache else []
     
     async def get_all_stations(self) -> List[ChargingStation]:
         """Get all charging stations - alias for fetch_all_stations"""

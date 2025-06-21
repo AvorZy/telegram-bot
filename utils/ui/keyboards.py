@@ -1,7 +1,7 @@
 import random
 from pydantic import BaseModel
 from typing import List
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, KeyboardButton, ReplyKeyboardMarkup
 from models.core.product import Product  # Changed from Car
 from utils.ui.language import language_handler
 from utils.services.data_loader import car_data_loader
@@ -54,6 +54,7 @@ class Keyboards:
     def settings_menu(telegram_id: int) -> InlineKeyboardMarkup:
         keyboard = [
             [InlineKeyboardButton(language_handler.get_text("change_language", telegram_id), callback_data="change_language")],
+            [InlineKeyboardButton(language_handler.get_text("location_settings", telegram_id), callback_data="location_settings")],
             [Keyboards.create_back_to_menu_button(telegram_id)]
         ]
         return InlineKeyboardMarkup(keyboard)
@@ -592,3 +593,50 @@ class Keyboards:
             [InlineKeyboardButton(language_handler.get_text("help_settings", telegram_id), callback_data="help_settings")],
             [InlineKeyboardButton(language_handler.get_text("back_to_menu", telegram_id), callback_data="main_menu")]
         ])
+
+    @staticmethod
+    def location_settings_menu(telegram_id: int) -> InlineKeyboardMarkup:
+        """Create location settings menu keyboard"""
+        keyboard = [
+            [InlineKeyboardButton(language_handler.get_text("request_location_button", telegram_id), callback_data="request_location")],
+            [InlineKeyboardButton(language_handler.get_text("clear_location_button", telegram_id), callback_data="clear_location")],
+            [InlineKeyboardButton(language_handler.get_text("back_to_settings", telegram_id), callback_data="settings")]
+        ]
+        return InlineKeyboardMarkup(keyboard)
+
+    @staticmethod
+    def location_request_keyboard(telegram_id: int) -> ReplyKeyboardMarkup:
+        """Create keyboard for requesting location"""
+        keyboard = [
+            [KeyboardButton(language_handler.get_text("share_location_button", telegram_id), request_location=True)],
+            [KeyboardButton(language_handler.get_text("cancel_button", telegram_id))]
+        ]
+        return ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
+
+    @staticmethod
+    def location_options_keyboard(telegram_id: int) -> InlineKeyboardMarkup:
+        """Create keyboard for location-based options"""
+        keyboard = [
+            [InlineKeyboardButton(language_handler.get_text("nearby_charging_stations_button", telegram_id), callback_data="nearby_charging_stations")],
+            [InlineKeyboardButton(language_handler.get_text("nearby_garages_button", telegram_id), callback_data="nearby_garages")],
+            [InlineKeyboardButton(language_handler.get_text("back_to_menu", telegram_id), callback_data="main_menu")]
+        ]
+        return InlineKeyboardMarkup(keyboard)
+
+    @staticmethod
+    def charging_station_location_keyboard(telegram_id: int) -> InlineKeyboardMarkup:
+        """Create keyboard for charging station with location request"""
+        keyboard = [
+            [InlineKeyboardButton(language_handler.get_text("request_location_button", telegram_id), callback_data="request_location")],
+            [InlineKeyboardButton(language_handler.get_text("back_to_charging_options", telegram_id), callback_data="view_charging_stations")]
+        ]
+        return InlineKeyboardMarkup(keyboard)
+
+    @staticmethod
+    def garage_location_keyboard(telegram_id: int) -> InlineKeyboardMarkup:
+        """Create keyboard for garage with location request"""
+        keyboard = [
+            [InlineKeyboardButton(language_handler.get_text("request_location_button", telegram_id), callback_data="request_location")],
+            [InlineKeyboardButton(language_handler.get_text("back_to_garage_options", telegram_id), callback_data="view_garages")]
+        ]
+        return InlineKeyboardMarkup(keyboard)

@@ -2,54 +2,67 @@ import aiohttp
 import math
 import os
 import re
+import time
 from typing import List, Optional, Dict, Any, Tuple
 from models.core.garage import Garage
-from dotenv import load_dotenv
-
-# Load environment variables
-load_dotenv()
+from utils.config.settings import API_BASE_URL_IMG
 
 class GarageService:
     """Service class for handling garage API operations"""
     
     def __init__(self, api_url: str = "https://inventoryapiv1-367404119922.asia-southeast1.run.app/Garage"):
         self.api_url = api_url
-        # Use environment variables like data_loader
-        self.image_base_url = os.getenv('API_BASE_URL_IMG', "https://inventoryapiv1-367404119922.asia-southeast1.run.app/uploads/")
+        self.image_base_url = API_BASE_URL_IMG
         # Remove trailing slash from R2 URL to avoid double slashes
         self.r2_image_base_url = "https://pub-133f8593b35749f28fa090bc33925b31.r2.dev"
+        # Add caching
+        self.garages_cache = []
+        self.cache_timestamp = 0
+        self.cache_duration = 300  # 5 minutes
     
     async def fetch_all_garages(self) -> List[Garage]:
-        """Fetch all garages from API"""
+        """Fetch all garages from API with caching"""
+        current_time = time.time()
+        
+        # Check if cache is still valid
+        if (self.garages_cache and 
+            current_time - self.cache_timestamp < self.cache_duration):
+            print("DEBUG: Using cached garages data")
+            return self.garages_cache
+        
+        # Fetch fresh data from API
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.get(self.api_url) as response:
                     if response.status == 200:
                         response_data = await response.json()
                         print(f"DEBUG: Garage API Response type: {type(response_data)}")
-                        print(f"DEBUG: Garage API Response: {response_data}")
                         
                         # Check if response_data is a list
                         if isinstance(response_data, list):
-                            return [Garage.from_api_data(garage_data) for garage_data in response_data]
+                            self.garages_cache = [Garage.from_api_data(garage_data) for garage_data in response_data]
                         elif isinstance(response_data, dict):
                             # If it's a dict, check for 'data' property (pagination response)
                             if 'data' in response_data and isinstance(response_data['data'], list):
-                                return [Garage.from_api_data(garage_data) for garage_data in response_data['data']]
+                                self.garages_cache = [Garage.from_api_data(garage_data) for garage_data in response_data['data']]
                             else:
                                 # Single garage object
-                                return [Garage.from_api_data(response_data)]
+                                self.garages_cache = [Garage.from_api_data(response_data)]
                         else:
                             print(f"ERROR: Unexpected garage data type: {type(response_data)}")
-                            return []
+                            return self.garages_cache if self.garages_cache else []
+                        
+                        self.cache_timestamp = current_time
+                        print(f"DEBUG: Fetched {len(self.garages_cache)} garages from API")
+                        return self.garages_cache
                     else:
                         print(f"ERROR: Garage API returned status {response.status}")
-                        return []
+                        return self.garages_cache if self.garages_cache else []
         except Exception as e:
             print(f"Error fetching garages: {e}")
             import traceback
             traceback.print_exc()
-            return []
+            return self.garages_cache if self.garages_cache else []
     
     async def get_unique_locations(self) -> List[str]:
         """Get list of unique locations from all garages"""
