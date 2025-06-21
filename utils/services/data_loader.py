@@ -6,19 +6,15 @@ import requests
 from typing import List, Dict, Optional, Any
 from datetime import datetime
 from decimal import Decimal
-from dotenv import load_dotenv
-
-
-# Load environment variables
-load_dotenv()
+from utils.config.settings import API_BASE_URL, API_BASE_URL_IMG
 
 class CarDataLoader:
     """Handles loading car data from API with dynamic images"""
     
     def __init__(self):
-        self.api_base_url = os.getenv('API_BASE_URL')
+        self.api_base_url = API_BASE_URL
         self.api_timeout = int(os.getenv('API_TIMEOUT', '30'))
-        self.image_base_url = os.getenv('API_BASE_URL_IMG')
+        self.image_base_url = API_BASE_URL_IMG
         self.loaded_cars = []
         self.categories_cache = {}
         self.brands_cache = {}

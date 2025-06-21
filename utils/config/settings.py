@@ -39,7 +39,7 @@ else:  # development
 
 # API Configuration
 API_BASE_URL = os.getenv('API_BASE_URL', 'https://inventoryapiv1-367404119922.asia-southeast1.run.app')
-API_BASE_URL_IMG = os.getenv('API_BASE_URL', 'https://pub-133f8593b35749f28fa090bc33925b31.r2.dev')
+API_BASE_URL_IMG = os.getenv('API_BASE_URL_IMG', 'https://pub-133f8593b35749f28fa090bc33925b31.r2.dev')
 
 
 
