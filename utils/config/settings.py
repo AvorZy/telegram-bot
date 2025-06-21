@@ -24,8 +24,9 @@ def validate_required_env_vars():
     if not TELEGRAM_TOKEN:
         raise ValueError("TELEGRAM_TOKEN environment variable is required")
     
-    if not TELEGRAM_CHAT_ID:
-        raise ValueError("TELEGRAM_CHAT_ID environment variable is required")
+    # TELEGRAM_CHAT_ID is optional - only validate if it's being used
+    # if not TELEGRAM_CHAT_ID:
+    #     raise ValueError("TELEGRAM_CHAT_ID environment variable is required")
 
 # Environment-specific settings
 if ENVIRONMENT == 'production':
