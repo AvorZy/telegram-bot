@@ -1,7 +1,7 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 from models.core.charging_station import ChargingStation
-from utils.services.charging_station_service import ChargingStationService
+from utils.services.charging_station_service import charging_station_service
 from utils.ui.keyboards import Keyboards
 from utils.ui.language import language_handler
 from typing import List, Dict, Any
@@ -155,8 +155,7 @@ async def handle_charging_connector_search(update: Update, context: ContextTypes
     message += f"{language_handler.get_text('choose_connector', update.effective_user.id)}"
     
     # Get connector types from API
-    charging_service = ChargingStationService()
-    connector_types = await charging_service.get_unique_connector_types()
+    connector_types = await charging_station_service.get_unique_connector_types()
     
     keyboard = []
     # Add connector types from API
@@ -273,8 +272,7 @@ async def apply_charging_station_filters(update: Update, context: ContextTypes.D
     
     try:
         # Get charging stations from service
-        charging_service = ChargingStationService()
-        all_stations = await charging_service.fetch_all_stations()
+        all_stations = await charging_station_service.fetch_all_stations()
         
         # Apply filters
         filtered_stations = []
@@ -358,7 +356,7 @@ async def show_charging_search_results_page(update: Update, context: ContextType
     context.user_data['charging_search_offset'] = offset
     
     # Get charging station service for image handling
-    charging_service = ChargingStationService()
+    # Using global instance
     
     # Display each station as a separate message (like car search flow)
     for i, station in enumerate(search_results[start_idx:end_idx], start_idx + 1):
@@ -412,10 +410,10 @@ async def show_charging_search_results_page(update: Update, context: ContextType
             image_url = None
             if station.image_url:
                 # Try R2 storage first
-                image_url = await charging_service.get_full_image_url(station.image_url)
+                image_url = await charging_station_service.get_full_image_url(station.image_url)
             else:
                 # Use default charging station image from R2
-                image_url = f"{charging_service.r2_image_base_url}charging_station_default.jpg"
+                image_url = f"{charging_station_service.r2_image_base_url}charging_station_default.jpg"
             
             # Try to send photo with caption (same logic as charging station display)
             if image_url:
@@ -443,7 +441,7 @@ async def show_charging_search_results_page(update: Update, context: ContextType
         # Try fallback to original API storage if R2 failed and station has image
         if not photo_sent and station.image_url:
             try:
-                fallback_url = charging_service.get_fallback_image_url(station.image_url)
+                fallback_url = charging_station_service.get_fallback_image_url(station.image_url)
                 
                 # Validate fallback image URL
                 if await is_valid_image_url(fallback_url):
@@ -466,13 +464,6 @@ async def show_charging_search_results_page(update: Update, context: ContextType
             fallback_message = f"🔌 {details}\n\n⚠️ Image not available"
             await update.callback_query.message.reply_text(
                 fallback_message,
-                reply_markup=keyboard,
-                parse_mode='Markdown'
-            )
-        else:
-            # Send text message if no image
-            await update.callback_query.message.reply_text(
-                text=details,
                 reply_markup=keyboard,
                 parse_mode='Markdown'
             )

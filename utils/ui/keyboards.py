@@ -5,7 +5,7 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup, KeyboardButton,
 from models.core.product import Product  # Changed from Car
 from utils.ui.language import language_handler
 from utils.services.data_loader import car_data_loader
-from utils.services.charging_station_service import ChargingStationService
+from utils.services.charging_station_service import charging_station_service
 from utils.services.accessory_service import AccessoryService
 
 class Keyboards:
@@ -226,8 +226,7 @@ class Keyboards:
     async def charging_location_keyboard(telegram_id: int) -> InlineKeyboardMarkup:
         """Create location selection keyboard for charging station search"""
         # Get unique locations from charging station API data
-        charging_service = ChargingStationService()
-        locations = await charging_service.get_unique_locations()
+        locations = await charging_station_service.get_unique_locations()
         
         # Create buttons for locations (2 per row)
         location_buttons = []

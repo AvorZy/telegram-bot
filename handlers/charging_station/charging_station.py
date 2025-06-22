@@ -2,7 +2,7 @@ import asyncio
 from telegram import Update, InputMediaPhoto, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 from utils.ui.language import language_handler
-from utils.services.charging_station_service import ChargingStationService
+from utils.services.charging_station_service import charging_station_service
 from models.core.charging_station import ChargingStation
 from typing import List
 import aiohttp
@@ -167,7 +167,7 @@ async def handle_show_by_location(update: Update, context: ContextTypes.DEFAULT_
     await query.answer()
     
     telegram_id = update.effective_user.id
-    service = ChargingStationService()
+    # Using global charging station service instance
     
     # Show loading message
     loading_message = language_handler.get_text("charging_loading", telegram_id)
@@ -175,7 +175,7 @@ async def handle_show_by_location(update: Update, context: ContextTypes.DEFAULT_
     
     try:
         # Get unique locations
-        locations = await service.get_unique_locations()
+        locations = await charging_station_service.get_unique_locations()
         
         if not locations:
             no_stations_message = language_handler.get_text("charging_no_stations", telegram_id)
@@ -226,7 +226,7 @@ async def show_stations_page(update: Update, context: ContextTypes.DEFAULT_TYPE,
     """Display a page of charging stations in card format"""
     query = update.callback_query if update.callback_query else None
     telegram_id = update.effective_user.id
-    service = ChargingStationService()
+    # Using global charging station service instance
     
     stations = context.user_data.get('nearby_stations', [])
     
@@ -299,16 +299,16 @@ async def show_stations_page(update: Update, context: ContextTypes.DEFAULT_TYPE,
             
             # Add R2 storage URL if available
             if station.image_url:
-                r2_url = await service.get_full_image_url(station.image_url)
+                r2_url = await charging_station_service.get_full_image_url(station.image_url)
                 image_urls.append((r2_url, "R2 storage"))
             
             # Add API storage URL if available
             if station.image_url:
-                api_url = service.get_fallback_image_url(station.image_url)
+                api_url = charging_station_service.get_fallback_image_url(station.image_url)
                 image_urls.append((api_url, "API storage"))
             
             # Add default R2 image as fallback
-            default_r2_url = f"{service.r2_image_base_url}charging_station_default.jpg"
+            default_r2_url = f"{charging_station_service.r2_image_base_url}charging_station_default.jpg"
             image_urls.append((default_r2_url, "Default R2 image"))
             
             photo_sent = False
@@ -452,7 +452,7 @@ async def show_location_stations_page(update: Update, context: ContextTypes.DEFA
     """Display a page of location-based charging stations in card format"""
     query = update.callback_query if update.callback_query else None
     telegram_id = update.effective_user.id
-    service = ChargingStationService()
+    # Using global charging station service instance
     
     stations = context.user_data.get('location_stations', [])
     location = context.user_data.get('current_location', '')
@@ -519,16 +519,16 @@ async def show_location_stations_page(update: Update, context: ContextTypes.DEFA
             
             # Add R2 storage URL if available
             if station.image_url:
-                r2_url = await service.get_full_image_url(station.image_url)
+                r2_url = await charging_station_service.get_full_image_url(station.image_url)
                 image_urls.append((r2_url, "R2 storage"))
             
             # Add API storage URL if available
             if station.image_url:
-                api_url = service.get_fallback_image_url(station.image_url)
+                api_url = charging_station_service.get_fallback_image_url(station.image_url)
                 image_urls.append((api_url, "API storage"))
             
             # Add default R2 image as fallback
-            default_r2_url = f"{service.r2_image_base_url}charging_station_default.jpg"
+            default_r2_url = f"{charging_station_service.r2_image_base_url}charging_station_default.jpg"
             image_urls.append((default_r2_url, "Default R2 image"))
             
             photo_sent = False
@@ -669,7 +669,7 @@ async def view_location_stations(update: Update, context: ContextTypes.DEFAULT_T
     await query.answer()
     
     telegram_id = update.effective_user.id
-    service = ChargingStationService()
+    # Using global charging station service instance
     
     # Extract location from callback data
     callback_data = query.data
@@ -681,7 +681,7 @@ async def view_location_stations(update: Update, context: ContextTypes.DEFAULT_T
     
     try:
         # Get stations for this location
-        stations = await service.get_stations_by_location(location)
+        stations = await charging_station_service.get_stations_by_location(location)
         
         if not stations:
             no_stations_message = language_handler.get_text("charging_no_stations_in_location", telegram_id).format(location=location)
@@ -719,7 +719,7 @@ async def view_station_navigation(update: Update, context: ContextTypes.DEFAULT_
     await query.answer()
     
     telegram_id = update.effective_user.id
-    service = ChargingStationService()
+    # Using global charging station service instance
     
     # Extract station index and location from callback data
     callback_data = query.data
@@ -729,7 +729,7 @@ async def view_station_navigation(update: Update, context: ContextTypes.DEFAULT_
     
     try:
         # Get stations for this location
-        stations = await service.get_stations_by_location(location)
+        stations = await charging_station_service.get_stations_by_location(location)
         
         if not stations or station_index >= len(stations):
             error_message = language_handler.get_text("charging_error", telegram_id)
@@ -738,7 +738,7 @@ async def view_station_navigation(update: Update, context: ContextTypes.DEFAULT_
             return
         
         # Show station details
-        await _show_station_details(query, stations, station_index, location, telegram_id, service)
+        await _show_station_details(query, stations, station_index, location, telegram_id, charging_station_service)
         
     except Exception as e:
         error_message = language_handler.get_text("charging_error", telegram_id)
@@ -746,7 +746,7 @@ async def view_station_navigation(update: Update, context: ContextTypes.DEFAULT_
         await query.message.reply_text(error_message, reply_markup=keyboard)
         print(f"Error in view_station_navigation: {e}")
 
-async def _show_station_details(query, stations, station_index, location, telegram_id, service):
+async def _show_station_details(query, stations, station_index, location, telegram_id, charging_service):
     """Helper function to show station details with image"""
     station = stations[station_index]
     
@@ -761,10 +761,10 @@ async def _show_station_details(query, stations, station_index, location, telegr
     image_url = None
     if station.image_url:
         # Try R2 storage first
-        image_url = await service.get_full_image_url(station.image_url)
+        image_url = await charging_service.get_full_image_url(station.image_url)
     else:
         # Use default charging station image from R2
-        image_url = f"{service.r2_image_base_url}charging_station_default.jpg"
+        image_url = f"{charging_service.r2_image_base_url}charging_station_default.jpg"
     
     # Try to send photo with caption
     if image_url:
@@ -773,16 +773,16 @@ async def _show_station_details(query, stations, station_index, location, telegr
         
         # Add R2 storage URL if available
         if station.image_url:
-            r2_url = await service.get_full_image_url(station.image_url)
+            r2_url = await charging_service.get_full_image_url(station.image_url)
             image_urls.append((r2_url, "R2 storage"))
         
         # Add API storage URL if available
         if station.image_url:
-            api_url = service.get_fallback_image_url(station.image_url)
+            api_url = charging_service.get_fallback_image_url(station.image_url)
             image_urls.append((api_url, "API storage"))
         
         # Add default R2 image as fallback
-        default_r2_url = f"{service.r2_image_base_url}charging_station_default.jpg"
+        default_r2_url = f"{charging_service.r2_image_base_url}charging_station_default.jpg"
         image_urls.append((default_r2_url, "Default R2 image"))
         
         photo_sent = False

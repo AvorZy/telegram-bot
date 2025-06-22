@@ -1,7 +1,7 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove
 from telegram.ext import ContextTypes
 from utils.services.user_api_service import user_api_service
-from utils.services.charging_station_service import ChargingStationService
+from utils.services.charging_station_service import charging_station_service
 from utils.services.garage_service import GarageService
 from utils.ui.language import language_handler
 from utils.ui.keyboards import Keyboards
@@ -76,10 +76,9 @@ async def handle_location_received(update: Update, context: ContextTypes.DEFAULT
                 
                 # Automatically show nearby charging stations
                 from handlers.charging_station.charging_station import show_stations_page
-                from utils.services.charging_station_service import ChargingStationService
+                from utils.services.charging_station_service import charging_station_service
                 
-                service = ChargingStationService()
-                stations = await service.get_nearby_stations(latitude, longitude, limit=50)
+                stations = await charging_station_service.get_nearby_stations(latitude, longitude, limit=50)
                 
                 if stations:
                     context.user_data['nearby_stations'] = stations

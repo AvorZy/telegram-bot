@@ -3,6 +3,8 @@ import math
 import os
 import re
 import time
+import aiohttp
+import requests
 from typing import List, Optional, Dict, Any, Tuple
 from models.core.garage import Garage
 from utils.config.settings import API_BASE_URL_IMG
@@ -12,6 +14,7 @@ class GarageService:
     
     def __init__(self, api_url: str = "https://inventoryapiv1-367404119922.asia-southeast1.run.app/Garage"):
         self.api_url = api_url
+        self.api_timeout = int(os.getenv('API_TIMEOUT', '30'))
         self.image_base_url = API_BASE_URL_IMG
         # Remove trailing slash from R2 URL to avoid double slashes
         self.r2_image_base_url = "https://pub-133f8593b35749f28fa090bc33925b31.r2.dev"
@@ -19,6 +22,9 @@ class GarageService:
         self.garages_cache = []
         self.cache_timestamp = 0
         self.cache_duration = 300  # 5 minutes
+        # Pagination support
+        self.total_items = 0
+        self.items_per_page = 10
     
     async def fetch_all_garages(self) -> List[Garage]:
         """Fetch all garages from API with caching"""
@@ -27,16 +33,22 @@ class GarageService:
         # Check if cache is still valid
         if (self.garages_cache and 
             current_time - self.cache_timestamp < self.cache_duration):
-            pass
             return self.garages_cache
         
         # Fetch fresh data from API
         try:
+            # First, get the total count
+            self._update_total_count()
+            
+            # Since API pagination might be broken, request all items in one go
+            # Use a large page size to get all garages
             async with aiohttp.ClientSession() as session:
-                async with session.get(self.api_url) as response:
+                async with session.get(
+                    self.api_url,
+                    params={'page': 1, 'pageSize': max(self.total_items, 1000)}
+                ) as response:
                     if response.status == 200:
                         response_data = await response.json()
-                        pass
                         
                         # Check if response_data is a list
                         if isinstance(response_data, list):
@@ -49,18 +61,114 @@ class GarageService:
                                 # Single garage object
                                 self.garages_cache = [Garage.from_api_data(response_data)]
                         else:
-                            pass
+                            print("Unexpected response format")
                             return self.garages_cache if self.garages_cache else []
                         
                         self.cache_timestamp = current_time
-                        pass
                         return self.garages_cache
                     else:
-                        pass
+                        print(f"Error fetching garages: HTTP {response.status}")
                         return self.garages_cache if self.garages_cache else []
+                        
         except Exception as e:
-            pass
+            print(f"Error fetching all garages: {e}")
+            # Fallback: try without pagination parameters
+            try:
+                print("Falling back to simple API call...")
+                async with aiohttp.ClientSession() as session:
+                    async with session.get(self.api_url) as response:
+                        if response.status == 200:
+                            response_data = await response.json()
+                            
+                            # Check if response_data is a list
+                            if isinstance(response_data, list):
+                                self.garages_cache = [Garage.from_api_data(garage_data) for garage_data in response_data]
+                            elif isinstance(response_data, dict):
+                                # If it's a dict, check for 'data' property (pagination response)
+                                if 'data' in response_data and isinstance(response_data['data'], list):
+                                    self.garages_cache = [Garage.from_api_data(garage_data) for garage_data in response_data['data']]
+                                else:
+                                    # Single garage object
+                                    self.garages_cache = [Garage.from_api_data(response_data)]
+                            
+                            self.cache_timestamp = current_time
+                            return self.garages_cache
+                            
+            except Exception as fallback_error:
+                print(f"Fallback also failed: {fallback_error}")
+            
             return self.garages_cache if self.garages_cache else []
+    
+    async def fetch_page(self, page: int, page_size: int = None) -> List[Garage]:
+        """Fetch a specific page of garages"""
+        if page_size is None:
+            page_size = self.items_per_page
+            
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(
+                    self.api_url,
+                    params={'page': page, 'pageSize': page_size}
+                ) as response:
+                    if response.status == 200:
+                        response_data = await response.json()
+                        
+                        # Check if response_data is a list
+                        if isinstance(response_data, list):
+                            return [Garage.from_api_data(garage_data) for garage_data in response_data]
+                        elif isinstance(response_data, dict):
+                            # If it's a dict, check for 'data' property (pagination response)
+                            if 'data' in response_data and isinstance(response_data['data'], list):
+                                return [Garage.from_api_data(garage_data) for garage_data in response_data['data']]
+                            else:
+                                # Single garage object
+                                return [Garage.from_api_data(response_data)]
+                        else:
+                            return []
+                    else:
+                        print(f"Error fetching garage page {page}: HTTP {response.status}")
+                        return []
+        except Exception as e:
+            print(f"Error fetching garage page {page}: {e}")
+            return []
+    
+    def _update_total_count(self) -> None:
+        """Update the total count of garages"""
+        try:
+            # Use synchronous request for initialization
+            response = requests.get(
+                self.api_url,
+                params={'page': 1, 'pageSize': 1},
+                timeout=self.api_timeout
+            )
+            response.raise_for_status()
+            
+            data = response.json()
+            self.total_items = data.get('totalItems', 0)
+            print(f"Total garages: {self.total_items}")
+            
+        except Exception as e:
+            print(f"Error getting total garage count: {e}")
+            # Keep previous count if available
+            if not self.total_items:
+                self.total_items = 0
+    
+    def get_total_count(self) -> int:
+        """Get the total number of garages"""
+        if not self.total_items:
+            self._update_total_count()
+        return self.total_items
+    
+    def get_total_pages(self, page_size: int = None) -> int:
+        """Get the total number of pages"""
+        if page_size is None:
+            page_size = self.items_per_page
+            
+        total_count = self.get_total_count()
+        if total_count == 0 or page_size == 0:
+            return 0
+            
+        return (total_count + page_size - 1) // page_size  # Ceiling division
     
     async def get_unique_locations(self) -> List[str]:
         """Get list of unique locations from all garages"""

@@ -2,6 +2,7 @@ import asyncio
 import aiohttp
 import os
 import time
+import requests
 from typing import List, Optional, Dict, Any
 from models.core.accessory import Accessory
 from utils.config.settings import API_BASE_URL, API_BASE_URL_IMG
@@ -11,6 +12,7 @@ class AccessoryService:
     
     def __init__(self):
         self.base_url = API_BASE_URL
+        self.api_timeout = int(os.getenv('API_TIMEOUT', '30'))
         # Use environment variables like data_loader
         self.image_base_url = API_BASE_URL_IMG
         self.r2_image_base_url = API_BASE_URL_IMG if API_BASE_URL_IMG.endswith('/') else f"{API_BASE_URL_IMG}/"
@@ -20,6 +22,9 @@ class AccessoryService:
         # Image URL validation cache
         self.image_url_cache = {}
         self.image_cache_duration = 1800  # 30 minutes
+        # Pagination support
+        self.total_items = 0
+        self.items_per_page = 10
         
     async def fetch_all_accessories(self) -> List[Accessory]:
         """Fetch all accessories from API with caching"""
@@ -28,26 +33,127 @@ class AccessoryService:
         # Check if cache is still valid
         if (self.accessories_cache and 
             current_time - self.cache_timestamp < self.cache_duration):
-            pass
             return self.accessories_cache
         
         # Fetch fresh data from API
         try:
+            # First, get the total count
+            self._update_total_count()
+            
+            # Since API pagination might be broken, request all items in one go
+            # Use a large page size to get all accessories
             async with aiohttp.ClientSession() as session:
-                async with session.get(f"{self.base_url}/Accessory") as response:
+                async with session.get(
+                    f"{self.base_url}/Accessory",
+                    params={'page': 1, 'pageSize': max(self.total_items, 1000)}
+                ) as response:
+                    if response.status == 200:
+                        response_data = await response.json()
+                        
+                        # Handle different response formats
+                        if isinstance(response_data, dict) and 'data' in response_data:
+                            accessories_data = response_data['data']
+                        elif isinstance(response_data, list):
+                            accessories_data = response_data
+                        else:
+                            print("Unexpected response format")
+                            return self.accessories_cache if self.accessories_cache else []
+                        
+                        # Convert to Accessory objects
+                        self.accessories_cache = [Accessory.from_api_data(acc_data) for acc_data in accessories_data]
+                        self.cache_timestamp = current_time
+                        return self.accessories_cache
+                    else:
+                        print(f"Error fetching accessories: HTTP {response.status}")
+                        return self.accessories_cache if self.accessories_cache else []
+                        
+        except Exception as e:
+            print(f"Error fetching all accessories: {e}")
+            # Fallback: try without pagination parameters
+            try:
+                print("Falling back to simple API call...")
+                async with aiohttp.ClientSession() as session:
+                    async with session.get(f"{self.base_url}/Accessory") as response:
+                        if response.status == 200:
+                            response_data = await response.json()
+                            
+                            # Handle different response formats
+                            if isinstance(response_data, dict) and 'data' in response_data:
+                                accessories_data = response_data['data']
+                            elif isinstance(response_data, list):
+                                accessories_data = response_data
+                            else:
+                                accessories_data = []
+                            
+                            # Convert to Accessory objects
+                            self.accessories_cache = [Accessory.from_api_data(acc_data) for acc_data in accessories_data]
+                            self.cache_timestamp = current_time
+                            return self.accessories_cache
+                            
+            except Exception as fallback_error:
+                print(f"Fallback also failed: {fallback_error}")
+            
+            return self.accessories_cache if self.accessories_cache else []
+    
+    async def fetch_page(self, page: int, page_size: int = None) -> List[Accessory]:
+        """Fetch a specific page of accessories"""
+        if page_size is None:
+            page_size = self.items_per_page
+            
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(
+                    f"{self.base_url}/Accessory",
+                    params={'page': page, 'pageSize': page_size}
+                ) as response:
                     if response.status == 200:
                         data = await response.json()
                         accessories_data = data.get('data', [])
-                        self.accessories_cache = [Accessory.from_api_data(acc_data) for acc_data in accessories_data]
-                        self.cache_timestamp = current_time
-                        pass
-                        return self.accessories_cache
+                        return [Accessory.from_api_data(acc_data) for acc_data in accessories_data]
                     else:
-                        pass
-                        return self.accessories_cache if self.accessories_cache else []
+                        print(f"Error fetching page {page}: HTTP {response.status}")
+                        return []
         except Exception as e:
-            pass
-            return self.accessories_cache if self.accessories_cache else []
+            print(f"Error fetching page {page}: {e}")
+            return []
+    
+    def _update_total_count(self) -> None:
+        """Update the total count of accessories"""
+        try:
+            # Use synchronous request for initialization
+            response = requests.get(
+                f"{self.base_url}/Accessory",
+                params={'page': 1, 'pageSize': 1},
+                timeout=self.api_timeout
+            )
+            response.raise_for_status()
+            
+            data = response.json()
+            self.total_items = data.get('totalItems', 0)
+            print(f"Total accessories: {self.total_items}")
+            
+        except Exception as e:
+            print(f"Error getting total accessory count: {e}")
+            # Keep previous count if available
+            if not self.total_items:
+                self.total_items = 0
+    
+    def get_total_count(self) -> int:
+        """Get the total number of accessories"""
+        if not self.total_items:
+            self._update_total_count()
+        return self.total_items
+    
+    def get_total_pages(self, page_size: int = None) -> int:
+        """Get the total number of pages"""
+        if page_size is None:
+            page_size = self.items_per_page
+            
+        total_count = self.get_total_count()
+        if total_count == 0 or page_size == 0:
+            return 0
+            
+        return (total_count + page_size - 1) // page_size  # Ceiling division
     
     async def get_unique_types(self) -> List[str]:
         """Get unique accessory categories"""
