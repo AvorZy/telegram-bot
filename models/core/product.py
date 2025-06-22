@@ -124,6 +124,3 @@ def initialize_product_data():
 
 # Global product listings (will be populated by initialize_product_data)
 product_listings = []
-
-# Call initialization when module is imported
-initialize_product_data()

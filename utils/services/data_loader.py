@@ -1,6 +1,4 @@
-import requests
 import os
-import random
 import re
 import requests
 from typing import List, Dict, Optional, Any
@@ -23,39 +21,81 @@ class CarDataLoader:
             raise ValueError("API_BASE_URL must be set in .env file")
     
     def load_all_data(self) -> List[Dict]:
-        """Load data from API with fallback to sample data"""
-        try:
-            # Load categories and brands first
-            self._load_categories()
-            self._load_brands()
-            
-            api_cars = self._load_from_api()
-            if api_cars:
-                self.loaded_cars = api_cars
-                return api_cars
-        except Exception as e:
-            pass  # Silent fallback
+        """Load data from API only"""
+        # Load categories and brands first
+        self._load_categories()
+        self._load_brands()
         
-        # Fallback to sample data
-        fallback_cars = self._generate_sample_data()
-        self.loaded_cars = fallback_cars
-        return fallback_cars
+        # Load cars from API
+        api_cars = self._load_from_api()
+        self.loaded_cars = api_cars
+        return api_cars
     
     def _load_from_api(self) -> List[Dict]:
-        """Load and process data from API"""
-        response = requests.get(
-            f"{self.api_base_url}/Product",
-            timeout=self.api_timeout
-        )
-        response.raise_for_status()
+        """Load and process data from API with pagination workaround"""
+        all_products = []
         
-        api_data = response.json()
-        products = api_data.get('data', []) if isinstance(api_data, dict) else api_data
+        try:
+            # First, try to get total count with a small request
+            print("Getting total product count...")
+            response = requests.get(
+                f"{self.api_base_url}/Product",
+                params={'page': 1, 'pageSize': 1},
+                timeout=self.api_timeout
+            )
+            response.raise_for_status()
+            api_data = response.json()
+            total_items = api_data.get('totalItems', 0)
+            
+            if total_items == 0:
+                print("No products found in API")
+                return []
+            
+            # Load all products in single request
+            
+            # Since API pagination is broken, request all items in one go
+            # Use a large page size to get all products
+            response = requests.get(
+                f"{self.api_base_url}/Product",
+                params={'page': 1, 'pageSize': total_items},
+                timeout=self.api_timeout
+            )
+            response.raise_for_status()
+            
+            api_data = response.json()
+            products_data = api_data.get('data', [])
+            
+            # Successfully loaded products from API
+            
+            if products_data:
+                # Convert and add products
+                converted_products = [self._convert_product_to_car(product) for product in products_data]
+                all_products.extend(converted_products)
+            
+        except Exception as e:
+            print(f"Error loading from API: {e}")
+            # Fallback: try with standard pagination (first page only)
+            try:
+                print("Falling back to single page load...")
+                response = requests.get(
+                    f"{self.api_base_url}/Product",
+                    params={'page': 1, 'pageSize': 50},
+                    timeout=self.api_timeout
+                )
+                response.raise_for_status()
+                api_data = response.json()
+                products_data = api_data.get('data', [])
+                
+                if products_data:
+                    converted_products = [self._convert_product_to_car(product) for product in products_data]
+                    all_products.extend(converted_products)
+                    # Fallback: loaded products from first page
+                    
+            except Exception as fallback_error:
+                print(f"Fallback also failed: {fallback_error}")
         
-        if not products:
-            return []
-        
-        return [self._convert_product_to_car(product) for product in products]
+        # Total products loaded successfully
+        return all_products
     
     def _load_categories(self) -> None:
         """Load categories from separate API endpoint"""
@@ -126,7 +166,7 @@ class CarDataLoader:
         category_name = self.categories_cache.get(category_id, product.get('category', 'Sedan'))
         
         return {
-            'id': product.get('id', random.randint(10000, 99999)),
+            'id': product.get('id', hash(str(product)) % 100000),
             'user_id': None,
             'brand': brand_name,
             'model': product.get('model', product.get('title', 'Unknown Model')),
@@ -151,9 +191,9 @@ class CarDataLoader:
         }
     
     def _get_dynamic_image_url(self, image_filename: str) -> str:
-        """Get dynamic image URL from R2 bucket"""
+        """Get dynamic image URL from R2 bucket or API data"""
         if not image_filename:
-            return self._get_fallback_car_image()
+            return ""
         
         # Clean up malformed URLs with trailing commas and spaces
         clean_filename = image_filename.strip().rstrip(',')
@@ -163,7 +203,7 @@ class CarDataLoader:
             if '.' in clean_filename:  # Basic URL validation
                 return clean_filename
             else:
-                return self._get_fallback_car_image()
+                return ""
         
         # Construct dynamic image URL from R2 bucket
         dynamic_url = f"{self.image_base_url}/{clean_filename}"
@@ -176,35 +216,12 @@ class CarDataLoader:
         except Exception:
             pass
         
-        # If dynamic image fails, use fallback
-        return self._get_fallback_car_image()
+        # Return empty string if no valid image found
+        return ""
     
-    def _get_fallback_car_image(self) -> str:
-        """Get a fallback car image URL"""
-        fallback_images = [
-            "https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80",
-            "https://images.unsplash.com/photo-1552519507-da3b142c6e3d?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80",
-            "https://images.unsplash.com/photo-1583121274602-3e2820c69888?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80",
-            "https://images.unsplash.com/photo-1494976388531-d1058494cdd8?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80",
-            "https://images.unsplash.com/photo-1550355291-bbee04a92027?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80"
-        ]
-        return random.choice(fallback_images)
+
     
-    def _generate_sample_gallery(self) -> List[str]:
-        """Generate sample gallery images for cars"""
-        gallery_images = [
-            "https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80",
-            "https://images.unsplash.com/photo-1552519507-da3b142c6e3d?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80",
-            "https://images.unsplash.com/photo-1583121274602-3e2820c69888?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80",
-            "https://images.unsplash.com/photo-1494976388531-d1058494cdd8?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80",
-            "https://images.unsplash.com/photo-1550355291-bbee04a92027?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80",
-            "https://images.unsplash.com/photo-1502877338535-766e1452684a?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80",
-            "https://images.unsplash.com/photo-1511919884226-fd3cad34687c?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80",
-            "https://images.unsplash.com/photo-1503376780353-7e6692767b70?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80"
-        ]
-        # Return 2-4 random gallery images for each car
-        num_images = random.randint(2, 4)
-        return random.sample(gallery_images, num_images)
+
     
     def _process_gallery(self, gallery_data) -> List[str]:
         """Process gallery images from API using dynamic URLs"""
@@ -257,42 +274,7 @@ class CarDataLoader:
         model = product.get('model', product.get('title', 'Unknown Model'))
         return f"Quality {brand} {model} in excellent condition. Contact seller for more details."
     
-    def _generate_sample_data(self) -> List[Dict]:
-        """Generate sample car data for fallback"""
-        brands = ['Toyota', 'Honda', 'BMW', 'Mercedes-Benz', 'Audi', 'Ford', 'Chevrolet', 'Nissan']
-        models = ['Sedan', 'SUV', 'Hatchback', 'Coupe', 'Convertible', 'Truck']
-        locations = ['Phnom Penh', 'Siem Reap', 'Battambang', 'Sihanoukville']
-        colors = ['Red', 'Blue', 'Black', 'White', 'Silver', 'Gray']
-        
-        cars = []
-        for i in range(10):
-            brand = random.choice(brands)
-            model_type = random.choice(models)
-            
-            cars.append({
-                'id': i + 1,
-                'user_id': None,
-                'brand': brand,
-                'model': f"{brand} {model_type}",
-                'year': random.randint(2015, 2024),
-                'price': random.randint(15000, 80000),
-                'currency': 'USD',
-                'description': f"Quality {brand} {model_type} in excellent condition. Well-maintained vehicle with low mileage.",
-                'image_url': self._get_fallback_car_image(),
-                'gallery': self._generate_sample_gallery(),
-                'location': random.choice(locations),
-                'color': random.choice(colors),
-                'condition': 'Good',
-                'phone_number': '097 80 24 246',
-                'category': 'Sedan',
-                'is_featured': False,
-                'sku': f'SKU-{i+1}',
-                'status': 'available',
-                'created_at': datetime.now().isoformat(),
-                'source': 'fallback'
-            })
-        
-        return cars
+
     
     def get_brands_list(self) -> List[str]:
         """Get sorted list of available brands"""

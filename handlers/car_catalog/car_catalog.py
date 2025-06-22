@@ -12,6 +12,9 @@ async def view_cars(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer(language_handler.get_text("loading_cars", update.effective_user.id))
     
+    # Check if this is a refresh action
+    is_refreshed = query.data == "refresh_cars" if query.data else False
+    
     # Check available cars first
     available_cars = [car for car in products if car.status == "available"]
     
@@ -22,7 +25,7 @@ async def view_cars(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         # Cars available - show brand selection
         message = language_handler.get_text("select_car_brand", update.effective_user.id)
-        keyboard = Keyboards.car_brands(available_cars, update.effective_user.id, False)
+        keyboard = Keyboards.car_brands(available_cars, update.effective_user.id, is_refreshed)
     
     # Send NEW message instead of editing
     await query.message.reply_text(
@@ -108,9 +111,8 @@ async def show_brand_cars_page(update: Update, context: ContextTypes.DEFAULT_TYP
             if car.image_url and car.image_url.strip():
                 try:
                     media_group.append(InputMediaPhoto(media=car.image_url.strip(), caption=details))
-                    print(f"✅ Added main image: {car.image_url[:50]}...")
                 except Exception as e:
-                    print(f"❌ Failed to add main image {car.image_url}: {e}")
+                    print(f"⚠️ Invalid main image URL {car.image_url}: {e}")
             
             # Validate and add gallery images (up to 9 more images, total 10 max for Telegram)
             valid_gallery_count = 0
@@ -121,7 +123,6 @@ async def show_brand_cars_page(update: Update, context: ContextTypes.DEFAULT_TYP
                         if clean_url.startswith('http') and '.' in clean_url:
                             media_group.append(InputMediaPhoto(media=clean_url))
                             valid_gallery_count += 1
-                            print(f"✅ Added gallery image {i+1}: {clean_url[:50]}...")
                         else:
                             print(f"⚠️ Skipped invalid gallery URL {i+1}: {gallery_img}")
                     except Exception as e:
@@ -144,7 +145,7 @@ async def show_brand_cars_page(update: Update, context: ContextTypes.DEFAULT_TYP
                         print(f"   Image {idx+1}: {media.media[:100]}...")
                     message_sent = False
             else:
-                print(f"⚠️ No valid images found in media group for car {car.id}")
+                # No valid images found in media group
                 message_sent = False
         else:
             # Send single image with product details (without buttons)

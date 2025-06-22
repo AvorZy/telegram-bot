@@ -71,19 +71,18 @@ class Keyboards:
     
     @staticmethod
     def car_brands(available_cars: List[Product], telegram_id: int, is_refreshed: bool = False) -> InlineKeyboardMarkup:
-        # This function has the actual car brand logos like 🚗 AC (7), 🚗 ACURA (59)
-        # AND it has the Refresh and Back buttons at the bottom
+        # This function shows car brands with count - limited to 12 brands per page
         brands = sorted(list(set(car.brand for car in available_cars)))
         keyboard = []
         
-        max_brands = 50  # Changed from 30 to 50 brands
+        max_brands = 12  # Show only 12 brands per page
         
         if is_refreshed:
-            # When refreshed, move to next set of 50 brands
+            # When refreshed, move to next set of 12 brands
             Keyboards._current_offset += max_brands
-            # If we've reached the end, start from a random position
+            # If we've reached the end, start from beginning
             if Keyboards._current_offset >= len(brands):
-                Keyboards._current_offset = random.randint(0, max(0, len(brands) - max_brands))
+                Keyboards._current_offset = 0
         else:
             # Reset offset for initial view
             Keyboards._current_offset = 0
@@ -91,11 +90,6 @@ class Keyboards:
         # Get the slice of brands to display
         end_index = min(Keyboards._current_offset + max_brands, len(brands))
         limited_brands = brands[Keyboards._current_offset:end_index]
-        
-        # If we don't have enough brands from current offset, wrap around
-        if len(limited_brands) < max_brands and len(brands) > max_brands:
-            remaining_needed = max_brands - len(limited_brands)
-            limited_brands.extend(brands[:remaining_needed])
         
         # Display brands in 3 columns
         for i in range(0, len(limited_brands), 3):
@@ -112,8 +106,12 @@ class Keyboards:
                     ))
             keyboard.append(row)
         
-        # Always add refresh and back buttons at the end (with proper translation)
-        keyboard.append([InlineKeyboardButton(language_handler.get_text("refresh", telegram_id), callback_data="refresh_cars")])
+        # Add refresh button only if there are more than 12 brands
+        if len(brands) > max_brands:
+            refresh_text = language_handler.get_text('refresh', telegram_id)
+            keyboard.append([InlineKeyboardButton(refresh_text, callback_data="refresh_cars")])
+        
+        # Always add back to menu button
         keyboard.append([InlineKeyboardButton(language_handler.get_text("back_to_menu", telegram_id), callback_data="back_to_main")])
         
         return InlineKeyboardMarkup(keyboard)
