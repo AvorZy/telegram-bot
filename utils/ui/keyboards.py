@@ -54,7 +54,6 @@ class Keyboards:
     def settings_menu(telegram_id: int) -> InlineKeyboardMarkup:
         keyboard = [
             [InlineKeyboardButton(language_handler.get_text("change_language", telegram_id), callback_data="change_language")],
-            [InlineKeyboardButton(language_handler.get_text("location_settings", telegram_id), callback_data="location_settings")],
             [Keyboards.create_back_to_menu_button(telegram_id)]
         ]
         return InlineKeyboardMarkup(keyboard)
